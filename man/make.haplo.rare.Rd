@@ -4,7 +4,7 @@
 \title{Group rare haplotypes together}
 \description{
   \code{make.haplo.rare} groups haplotypes with frequencies below a specified threshold together and processes data into a format compatible with the haplotype analysis functions}
-}
+
 \usage{
 make.haplo.rare(infer.object, min.freq)
 }

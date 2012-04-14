@@ -2,6 +2,7 @@
 \alias{summary.epiBin}
 \alias{print.summary.epiBin}
 
+
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{Summarizing epidemiological analysis models for binary outcomes}
 \description{
@@ -9,7 +10,7 @@
 }
 \usage{
 \method{summary}{epiBin}(object, ...)
-\method{print}{summary.epiBin}(x, digits = max(3, getOption("digits") - 3), 
+\method{print}{summary.epiBin}(x, digits = max(3, getOption("digits") - 3),
 	signif.stars = getOption("show.signif.stars"), ...)
 
 }

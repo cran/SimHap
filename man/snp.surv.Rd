@@ -44,8 +44,7 @@ McCaskie, P.A., Carter, K.W, Hazelton, M., Palmer, L.J. (2007) SimHap: A compreh
 Therneau, T., Grambsch, P., Fleming, T. Martingale based residuals for survival models,  \emph{Biometrika}, 77(1):147-160.
 }
 \author{Pamela A. McCaskie}
-\note{
-}
+
 \seealso{\code{\link{haplo.surv}}}
 \examples{
 

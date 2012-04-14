@@ -2,6 +2,7 @@
 \alias{summary.snpQuant}
 \alias{print.summary.snpQuant}
 
+
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{Summarizing single SNP analysis models for quantitative outcomes}
 \description{

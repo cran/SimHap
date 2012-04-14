@@ -2,7 +2,6 @@
 \alias{summary.snpSurv}
 \alias{print.summary.snpSurv}
 
-
 \title{Summarizing Single SNP analysis models for survival data}
 \description{
   Summary method for objects of class \code{snpSurv}

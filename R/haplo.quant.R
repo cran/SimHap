@@ -1,25 +1,27 @@
 `haplo.quant` <-
-function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL,predict_variable=NULL) {
+function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL,predict_variable=NULL, adjust=FALSE) {
   library(stats)
   call <- match.call()
 
   hapFreqs <- haplo$hapObject$final.freq
   haplo <- haplo$hapData
-  
+
+  if(!identical(as.character(unique(pheno$ID)), as.character(unique(haplo$ID)))) stop("Phenotype data and Haplotype data are not in the same order.")
+
   formula1_nofactors <- formula1
   formula1_terms <- attr(terms(formula1_nofactors), "term.labels")
-  
+
   if(any(regexpr(":", formula1_terms)!=-1)){
         formula1_terms <- formula1_terms[-which(regexpr(":", formula1_terms)!=-1)]
   }
-  
+
   if(any(regexpr("factor", formula1_terms)==1)) {
         formula1_terms[which(regexpr("factor", formula1_terms)==1)] <- substr(formula1_terms[which(regexpr("factor", formula1_terms)==1)],8,nchar(formula1_terms[which(regexpr("factor", formula1_terms)==1)])-1)
-  }   
+  }
   #else formula1_terms <- attr(terms(formula1_nofactors), "term.labels")
-  
+
   freq.estnums <- freqTest(terms=formula1_terms, freqs=hapFreqs, n=length(unique(haplo[,1])), effect=effect)
-  
+
   # first column retains number of non-zero weights for individual
   # second column holds the current iteration index for the next weight change
   num_weights <- matrix(0, nrow=nrow(pheno), ncol=2)
@@ -63,7 +65,6 @@ function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL,predict_v
   print("  Done")
   # *****************************
 
-
   indiv_weights <- matrix(0, nrow=num_indivs, ncol=biggest)
   indiv_hap1s <- matrix(0, nrow=num_indivs, ncol=biggest)
   indiv_hap2s <- matrix(0, nrow=num_indivs, ncol=biggest)
@@ -81,7 +82,7 @@ function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL,predict_v
   for(i in 2:nrow(haplo)) {
     tmpID <- haplo[i,1]
     this_weight <- as.numeric(haplo[i,ncol(haplo)])
-    
+
     # one attempt at rounding too small weight*sim up to '1'
     if((sim*this_weight) < 1)
       this_weight <- 1 / sim
@@ -120,13 +121,13 @@ function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL,predict_v
   # ****************************
   print("* Distributing individual occurrences across the simulations by posterior probability ...")
   # main loop across all iterations
-  
+
   #fit smaller, nested model (without haplotypes)
   fit2.lm <- eval(substitute(lm(formula2, data=pheno, subset=subset), list(subset=sub)))
-  
+
   #log likelihood for smaller, nested model (without haplotypes)
   lnLsmall <- logLik(fit2.lm)
-  
+
   for(i in 1:sim) {
 
     # determine weight for each individual and populate hapXs vectors
@@ -201,7 +202,7 @@ function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL,predict_v
   # prepare the reusable dataframe container ...
   dataframe_extra <- matrix(0, nrow=num_indivs, ncol=num_haplos)
   dataframe_extra <- as.data.frame(dataframe_extra)
-  
+
   for(i in 1:ncol(dataframe_extra)){
     colnames(dataframe_extra)[i] <- paste(names_haplos[i])}
 
@@ -238,7 +239,9 @@ function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL,predict_v
   lr.dat <- NULL
   lrt.dat <- NULL
   lnLbig.dat <- NULL
-  
+  vcov.list <- list(NULL)
+  beta.list <- list(NULL)
+
   # the dynamic point at which the algorithm reports progress
   five_percent <- round(sim*0.05)
   report <- five_percent
@@ -299,12 +302,12 @@ function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL,predict_v
     dataframe <- as.data.frame(cbind(pheno, dataframe_extra))
     #change dataframe (if necessary) to include only indivs with complete data for all terms in formula1
     dataframe <- dataframe[complete.cases(dataframe[formula1_terms]),]
-    
+
     # perform the lm with the current dataframe
     fit1.lm <- eval(substitute(lm(formula1, data=dataframe, subset=subset), list(subset=sub)))
 
     if(is.null(predict_variable)) {
-    
+
          predicted <- "No variable was chosen to generate marginal means"
          predicted.mat <- NULL
          predicted.fit <- NULL
@@ -312,9 +315,9 @@ function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL,predict_v
     }
 
     else {
-  
+
          nls <- length(levs <- levels(as.factor(dataframe[, predict_variable])))
-         tmp1 <- mean(dataframe[formula1_terms], na.rm=TRUE)
+         tmp1 <- colMeans(dataframe[formula1_terms], na.rm=TRUE)
          tmp2 <- data.frame(matrix(rep(tmp1, nls), nrow=nls, byrow=TRUE))
          names(tmp2) <- names(tmp1)
          tmp2[, predict_variable] <- as.factor(levs)
@@ -331,15 +334,15 @@ function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL,predict_v
                for(j in 1:length(predicted.values$fit)){
                         predicted.mat <- cbind(predicted.mat,predicted.values$fit[j], predicted.values$se.fit[j])
                         }
-               } 
-        else { 
+               }
+        else {
                predicted <- "SNP variable was fitted with class 'numeric' but class 'factor' was required"
-               predicted.mat <- NULL  
+               predicted.mat <- NULL
                predicted.fit <- NULL
                predicted.se <- NULL
                }
-    } 
-    
+    }
+
     # lm
     fit.lm <- as.data.frame(summary(fit1.lm)$coefficients)
     anov <- as.data.frame(anova(fit2.lm, fit1.lm))
@@ -355,6 +358,10 @@ function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL,predict_v
     lrt <- pchisq(lr,df=lr.df)
     lrt.dat <- rbind(lrt.dat, lrt)
 
+    # extract variance-covariance matrix
+    vcov.list[[i]] <- vcov(fit1.lm)
+    beta.list[[i]] <- fit.lm$Estimate
+
     #likelihood.dat <- rbind(likelihood.dat, likelihood)
     aic <- AIC(fit1.lm)
     aic.dat <- rbind(aic.dat, aic)
@@ -363,7 +370,7 @@ function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL,predict_v
     predictedfit.dat <- rbind(predictedfit.dat,predicted.fit)
     predictedse.dat <- rbind(predictedse.dat,predicted.se)
     predictedMat.dat <- rbind(predictedMat.dat,predicted.mat)
-    
+
     # add this row to anovfull.dat
     anovfullp.row <- anovfull$"Pr(>F)"
     anovfullp.dat <- rbind(anovfullp.dat, anovfullp.row)
@@ -382,7 +389,7 @@ function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL,predict_v
     coef.row <- fit.lm$Estimate
     #coef.dat <- rbind(coef.dat, coef.row)
     coef.dat <- rbind(coef.dat, coef.row)
-    
+
 
     # extract some elements from the lm summary method and add row to p.dat
     pvals <- t(fit.lm[,ncol(fit.lm)])
@@ -394,7 +401,6 @@ function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL,predict_v
 
     # report on progress
     if(i==report) {
-
       percentage <- report * 100 / sim
       print(paste(percentage, "%"))
       report <- report + five_percent
@@ -432,17 +438,17 @@ function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL,predict_v
   anovfullp.dat <- as.data.frame(anovfullp.dat)
   predictedfit.dat <- as.data.frame(predictedfit.dat)
   predictedse.dat <- as.data.frame(predictedse.dat)
-  
+
   if(is.null(predict_variable)) pred.out <- "No variable was chosen to generate marginal means"
-  
+
   if(!is.null(predict_variable) && attr(fit1.lm$terms,"dataClasses")[grep(predict_variable, names(attr(fit1.lm$terms,"dataClasses")))]!="factor") pred.out <- "SNP variable was fitted with class 'numeric' but class 'factor' was required"
-  
+
   if(!is.null(predictedMat.dat)) {
-  
+
        predictedMat.dat <- as.data.frame(predictedMat.dat)
-  
+
        if(effect=="add") {
-           predicted <- round(mean(predictedMat.dat), digits=max(3, getOption("digits") - 3))
+           predicted <- round(colMeans(predictedMat.dat), digits=max(3, getOption("digits") - 3))
 	   predvals <- rbind(predicted[1], predicted[3], predicted[5])
 	   stderrs <- rbind(predicted[2], predicted[4], predicted[6])
 	   pred.out <- as.data.frame(cbind(predvals, stderrs))
@@ -454,7 +460,7 @@ function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL,predict_v
    names(predictedMat.dat)[5] <- "2 copies"
            }
        if(effect=="dom") {
-           predicted <- round(mean(predictedMat.dat), digits=max(3, getOption("digits") - 3))
+           predicted <- round(colMeans(predictedMat.dat), digits=max(3, getOption("digits") - 3))
            predvals <- rbind(predicted[1], predicted[3])
 	   stderrs <- rbind(predicted[2], predicted[4])
 	   pred.out <- as.data.frame(cbind(predvals, stderrs))
@@ -465,7 +471,7 @@ function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL,predict_v
    names(predictedMat.dat)[3] <- "1 or 2 copies"
    }
        if(effect=="rec") {
-           predicted <- round(mean(predictedMat.dat), digits=max(3, getOption("digits") - 3))
+           predicted <- round(colMeans(predictedMat.dat), digits=max(3, getOption("digits") - 3))
            predvals <- rbind(predicted[1], predicted[3])
 	   stderrs <- rbind(predicted[2], predicted[4])
 	   pred.out <- as.data.frame(cbind(predvals, stderrs))
@@ -475,12 +481,12 @@ function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL,predict_v
    names(predictedMat.dat)[1] <- "0 or 1 copies"
    names(predictedMat.dat)[3] <- "2 copies"
    }
-       
-       } 
-       
-       
-       
-       
+
+       }
+
+
+
+
   #if(!is.null(predictedMat.dat)) names(predictedMat.dat)[seq(1,ncol(predictedMat.dat),by=2)] <- paste(seq(0,ncol(predictedMat.dat)/2-1,by=1),"copy")
   aic.dat <- as.data.frame(aic.dat)
   lr.dat <- as.data.frame(lr.dat)
@@ -496,43 +502,53 @@ function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL,predict_v
   names(allResults$Std.Error) <- row.names(fit.lm)
   names(allResults$P.Value) <- row.names(fit.lm)
 
-  sum.of.squares <- NULL
-  for(i in 1:ncol(allResults$Std.Error)){
-       sum.of.squares <- cbind(sum.of.squares,sum(allResults$Std.Error[,i]^2))
-  }
-  sum.of.squares <- as.data.frame(sum.of.squares)
-  names(sum.of.squares) <- names(allResults$Std.Error)
-  se1 <- sqrt(sum.of.squares/nrow(allResults$Std.Error))
-  se2 <- sd(allResults$Coef)
-  se.adj <- sqrt(se1^2 + se2^2)
-  
-  out.coef <- as.numeric(formatC(mean(coef.dat)))
-  out.pval <- as.numeric(formatC(mean(p.dat)))
-  out.se <- as.numeric(formatC(mean(stderror.dat)))
-  #if(!is.null(predicted.dat)) predicted.vals <- formatC(mean(predicted.dat))
-  
-  summary.coefs <- data.frame(cbind(mean(allResults$Coef), as.numeric(as.vector(se.adj)), mean(allResults$P.Value)))
-  names(summary.coefs) <- c("Coefficient", "Std.error", "P.Value")
-  LRT.out1 <- cbind(round(mean(lnLbig.dat[,1]),digits=4), attr(lnLbig, "df"), round(mean(lr.dat),digits=4), signif((1-mean(lrt.dat)), digits=4))
-  LRT.out2 <- cbind(round(lnLsmall[1],digits=4), attr(lnLsmall, "df"), "", "")
-  row.names(LRT.out1) <- c("Full model")
-  row.names(LRT.out2) <- c("Non-genetic")
-  LRT <- rbind(LRT.out1, LRT.out2)
-  LRT <- as.data.frame(LRT)
-  names(LRT) <- c("logLik", "df", "LR", "P.Value")
+#  sum.of.squares <- NULL
+#  for(i in 1:ncol(allResults$Std.Error)){
+#       sum.of.squares <- cbind(sum.of.squares,sum(allResults$Std.Error[,i]^2))
+#  }
+#  sum.of.squares <- as.data.frame(sum.of.squares)
+#  names(sum.of.squares) <- names(allResults$Std.Error)
+#  se1 <- sqrt(sum.of.squares/nrow(allResults$Std.Error))
+#  se2 <- sd(allResults$Coef)
+#  se.adj <- sqrt(se1^2 + se2^2)
 
-  anovfull.out <- cbind(mean(anovfulldf.dat), formatC(mean(anovfullp.dat)))
+  # Combine inferences across the imputed datasets
+  out.mi <- UVI(coef.dat, stderror.dat^2,n=num_indivs, ADJ=adjust)
+
+  ind.haploeffect <- which(!is.element(names(fit1.lm$coefficients), names(fit2.lm$coefficients)))
+  p.full <- length(fit1.lm$coefficients)
+  L.contrast <- NULL
+  for(j in 1:length(ind.haploeffect)){
+    L.contrast <- rbind(L.contrast, c(rep(0, ind.haploeffect[j]-1),1,rep(0, p.full-ind.haploeffect[j])) )
+  }
+  out.mi.haps <- MVI(beta.list, vcov.list, L=L.contrast)
+  out.mi.haps <- out.mi.haps
+  out.coef <- as.numeric(formatC(out.mi$coefficients))
+  out.pval <- as.numeric(formatC(out.mi$p.value))
+  out.se <- as.numeric(formatC(out.mi$se))
+  #if(!is.null(predicted.dat)) predicted.vals <- formatC(mean(predicted.dat))
+
+  summary.coefs <- data.frame(cbind(out.coef, out.se, out.pval), row.names=row.names(fit.lm))
+  names(summary.coefs) <- c("Coefficient", "Std.error", "P.Value")
+
+  WALD.out <- cbind(round(out.mi.haps[4]), round(out.mi.haps[5],2), round(out.mi.haps[1], digits=4), round(out.mi.haps[3], digits=4))
+  WALD.out <- as.data.frame(WALD.out)
+  names(WALD.out) <- c("Num DF","Den DF","F.Stat", "P.Value")
+  row.names(WALD.out) <- ""
+
+
+  anovfull.out <- cbind(colMeans(anovfulldf.dat), formatC(colMeans(anovfullp.dat)))
   row.names(anovfull.out) <- row.names(anovfull)
 
   anovfull.out <- as.data.frame(anovfull.out)
-  names(anovfull.out) <- c("DF", "P-Value")
+  names(anovfull.out) <- c("DF", "Ave P-Value")
 
   anov.out1 <- cbind(mean(anovresdf.dat[1]), "", "")
   row.names(anov.out1) <- c("1")
-  anov.out2 <- cbind(mean(anovresdf.dat[2]), mean(anovdf.dat[2]), signif(mean(anovp.dat), digits=3))
+  anov.out2 <- cbind(mean(anovresdf.dat[2]), colMeans(anovdf.dat[2]), signif(colMeans(anovp.dat), digits=3))
   row.names(anov.out2) <- c("2")
-  likelihood.out <- paste("'log Lik'", round(mean(lnLbig.dat), digits=3), paste("(df=", attr(lnLbig, "df"), ")", sep=""))
-  rsquared.out <- rbind(round((summary(fit2.lm)$adj.r.squared),digits=3),round(mean(rsquared.dat),digits=3))
+  likelihood.out <- paste("'log Lik'", round(colMeans(lnLbig.dat), digits=3), paste("(df=", attr(lnLbig, "df"), ")", sep=""))
+  rsquared.out <- rbind(round((summary(fit2.lm)$adj.r.squared),digits=3),round(colMeans(rsquared.dat),digits=3))
   rsquared.out <- as.data.frame(rsquared.out)
   names(rsquared.out) <- "Adjusted R-Squared"
   row.names(rsquared.out) <- c("Without Haplotypes", "Including Haplotypes")
@@ -567,15 +583,14 @@ function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL,predict_v
   invars <- names(fit1.lm$coef)
   check <- invars %w/o% row.names(out)
   if(length(check) != 0) cat(c(check, "removed due to singularities"), "\n")
-  
+
   if(!is.null(predictedMat.dat)) {
      #predicted <- round(mean(predictedMat.dat), digits=max(3, getOption("digits") - 3))
-     
-     out.list <- list(formula1=formula1, formula2=formula2, results=out,empiricalResults=allResults, summary.coefs=summary.coefs, rsquared=rsquared.out,ANOD=anovfull.out,logLik=likelihood.out, LRT=LRT,predicted=pred.out, empiricalPredicted=predictedMat.dat, aic=mean(aic.dat), aicEmpirical=aic.dat, effect=Effect)
+
+     out.list <- list(formula1=formula1, formula2=formula2, results=out,empiricalResults=allResults, summary.coefs=summary.coefs, rsquared=rsquared.out,ANOD=anovfull.out,logLik=likelihood.out, WALD=WALD.out, predicted=pred.out, empiricalPredicted=predictedMat.dat, aic=colMeans(aic.dat), aicEmpirical=aic.dat, effect=Effect)
   } else {
-         out.list <- list(formula1=formula1, formula2=formula2, results=out,empiricalResults=allResults, summary.coefs=summary.coefs, rsquared=rsquared.out,ANOD=anovfull.out,logLik=likelihood.out, LRT=LRT,predicted=pred.out, empiricalPredicted=predictedMat.dat, aic=mean(aic.dat), aicEmpirical=aic.dat, effect=Effect)
-    }    
+         out.list <- list(formula1=formula1, formula2=formula2, results=out,empiricalResults=allResults, summary.coefs=summary.coefs, rsquared=rsquared.out,ANOD=anovfull.out,logLik=likelihood.out, WALD=WALD.out, predicted=pred.out, empiricalPredicted=predictedMat.dat, aic=colMeans(aic.dat), aicEmpirical=aic.dat, effect=Effect)
+    }
   class(out.list) <- "hapQuant"
   return(out.list)
 }
-

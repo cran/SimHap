@@ -6,7 +6,7 @@
   \code{epi.long} is used to fit linear mixed effects models to epidemiological data with longitudinal outcomes.
 }
 \usage{
-epi.long(fixed, random, pheno, cor="corCAR1", value = 0.2, 
+epi.long(fixed, random, pheno, cor="corCAR1", value = 0.2,
 	form=~1, sub = NULL)
 }
 %- maybe also 'usage' for other objects documented here.
@@ -26,11 +26,11 @@ epi.long(fixed, random, pheno, cor="corCAR1", value = 0.2,
   \code{epi.long} returns an object of class \code{epiLong}.
 
      The \code{summary} function can be used to obtain and print a
-     summary of the results.  
+     summary of the results.
 
      An object of class \code{epiLong} is a list containing the
      following components:
-     
+
   \item{results}{a table containing the coefficients, standard errors and p-values of the parameter estimates.}
   \item{fixed_formula}{fixed effects formula.}
   \item{random_formula}{random effects formula.}
@@ -65,13 +65,13 @@ Pinheiro, J.C., Bates, D.M. (2000) \emph{Mixed-Effects Models in S and S-PLUS}, 
 \examples{
 
 data(longPheno.dat)
-mymodel <- epi.long(fixed=fev1f~height+weight, random=~1|id, 
-	pheno=longPheno.dat, form=~year|id)
+mymodel <- epi.long(fixed=fev1f~height+weight, random=~1|ID,
+	pheno=longPheno.dat, form=~year|ID)
 summary(mymodel)
 
 # example with a subsetting variable, looking at males only
-mymodel <- epi.long(fixed=fev1f~height+weight, random=~1|id, 
-	pheno=longPheno.dat, form=~year|id, sub=expression(sex==1))
+mymodel <- epi.long(fixed=fev1f~height+weight, random=~1|ID,
+	pheno=longPheno.dat, form=~year|ID, sub=expression(sex==1))
 summary(mymodel)
 
 

@@ -2,6 +2,8 @@
 \alias{summary.hapQuant}
 \alias{print.summary.hapQuant}
 
+
+
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{Summarize quantitative haplotype analysis models}
 \description{

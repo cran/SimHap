@@ -2,6 +2,7 @@
 \alias{summary.hapSurv}
 \alias{print.summary.hapSurv}
 
+
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{Summarize haplotype analysis models for survival data}
 \description{

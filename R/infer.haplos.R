@@ -25,7 +25,7 @@ function(geno){
 
     #We only want rows that sum to two - others must have involved
     #haplotypes with estimated frequency of zero
-    
+
     #finalMatInd <- (rowSums(newhaploDM) == 2)
 
     #newhaploDM <- newhaploDM[finalMatInd,]
@@ -33,7 +33,7 @@ function(geno){
 
     #post.prob <- post.prob[finalMatInd]
     #newID <- newID[finalMatInd]
- 
+
     # Re-calculate weights
     uniqueIDs <- unique(newID)
     IDsum <- rep(0,length(uniqueIDs))
@@ -52,7 +52,7 @@ function(geno){
     for(i in 1:length(newID)){
       for(k in 1:length(j)){
         if(newID[i]== k) newID2[i] <- j[k]
-      } 
+      }
     }
   hap.freq <- EMloop(haplo.object, results=EM.results)
   hapMat <- cbind(newID2, newhaploMat, post.prob)

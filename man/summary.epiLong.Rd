@@ -2,6 +2,7 @@
 \alias{summary.epiLong}
 \alias{print.summary.epiLong}
 
+
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{Summarizing epidemiological analysis models for longitudinal data}
 \description{
@@ -9,13 +10,13 @@
 }
 \usage{
 \method{summary}{epiLong}(object, ...)
-\method{print}{summary.epiLong}(x, digits = max(3, getOption("digits") - 3), 
+\method{print}{summary.epiLong}(x, digits = max(3, getOption("digits") - 3),
 	signif.stars = getOption("show.signif.stars"), ...)
 
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
-  
+
   \item{object}{an object of class \code{epiLong}, a result of a call to \code{epi.long}.}
   \item{x}{an object of class \code{summary.epiLong}, the result of a call to \preformatted{summary.epiLong.}}
   \item{digits}{the number of significant digits to use when printing.}
@@ -25,7 +26,7 @@
 
 \value{
   \code{summary.epiLong} returns an object of class \code{summary.epiLong}. Some components taken from \code{summary.lme}. A list with components
-  
+
   \item{call}{the formula call.}
   \item{terms}{terms attribute of the formula called in \code{epi.long}.}
   \item{fixDF}{as per \code{lmeObject}. A list with components \code{X} and \code{terms} specifying the denominator degrees of freedom for, respectively, t-tests for the individual fixed effects and F-tests for the fixed-effects terms in the models.}
@@ -52,8 +53,8 @@ McCaskie, P.A., Carter, K.W. Hazelton, M., Palmer, L.J. (2007) SimHap: A compreh
 \examples{
 
 data(longPheno.dat)
-mymodel <- epi.long(fixed=fev1f~height, random=~1|id, pheno=longPheno.dat, 
-	form=~year|id)
+mymodel <- epi.long(fixed=fev1f~height, random=~1|ID, pheno=longPheno.dat,
+	form=~year|ID)
 summary(mymodel)
 
 }

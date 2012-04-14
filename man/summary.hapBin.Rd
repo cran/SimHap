@@ -2,6 +2,7 @@
 \alias{summary.hapBin}
 \alias{print.summary.hapBin}
 
+
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{Summarize binary haplotype analysis models}
 \description{

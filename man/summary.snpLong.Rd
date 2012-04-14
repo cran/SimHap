@@ -2,6 +2,7 @@
 \alias{summary.snpLong}
 \alias{print.summary.snpLong}
 
+
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{Summarizing single SNP analysis models for longitudinal data}
 \description{
@@ -9,7 +10,7 @@ Summary method for objects of class \code{snpLong}
 }
 \usage{
 \method{summary}{snpLong}(object, ...)
-\method{print}{summary.snpLong}(x, digits = max(3, getOption("digits") - 3), 
+\method{print}{summary.snpLong}(x, digits = max(3, getOption("digits") - 3),
 	signif.stars = getOption("show.signif.stars"), ...)
 
 }
@@ -55,8 +56,8 @@ data(SNPlong.dat)
 longGeno.dat <- SNP2Geno(SNPlong.dat, baseline=c("AA", "GG", "V2V2"))
 
 data(longPheno.dat)
-mymodel <- snp.long(fixed=fev1f~SNP_1_add, random=~1|id, 
-	geno=longGeno.dat, pheno=longPheno.dat, form=~year|id)
+mymodel <- snp.long(fixed=fev1f~SNP_1_add, random=~1|ID,
+	geno=longGeno.dat, pheno=longPheno.dat, form=~year|ID)
 summary(mymodel)
 
 }

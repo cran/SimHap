@@ -7,18 +7,26 @@
 }
 \usage{
 haplo.quant(formula1, formula2, pheno, haplo, sim, 
-	effect = "add", sub = NULL, predict_variable = NULL)
+	effect = "add", sub = NULL, predict_variable = NULL, adjust = FALSE)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
   \item{formula1}{a symbolic description of the full model including haplotype parameters to be fit. The details of model specification are given below.}
   \item{formula2}{a symbolic description of the nested model excluding haplotype parameters, to be compared to \code{formula1} in a likelihood ratio test.}
-  \item{pheno}{a dataframe containing phenotype data.}
-  \item{haplo}{a haplotype object made by \code{make.haplo.rare}.}
+  \item{pheno}{a dataframe containing phenotype data. }
+  \item{haplo}{a haplotype object made by \code{make.haplo.rare}. The
+    subjects must in the same order as they are in the phenotype data.}
   \item{sim}{the number of simulations from which to evaluate the results.}
   \item{effect}{the haplotypic effect type: \code{"add"} for additive, \code{"dom"} for dominant and \code{"rec"} for recessive. Defaults to additive. See note.}
   \item{sub}{optional. An expression representing a subset of individuals on which to perform analysis. e.g. \code{sub=expression(sex==1)}.}
-  \item{predict_variable}{an expression using a binary operator, representing a subset of the data on which to perform the models}
+  \item{predict_variable}{an expression using a binary operator,
+    representing a subset of the data on which to perform the models}
+  \item{adjust}{a logical flag. If adjust=TRUE, the adjusted degrees of
+    freedom is used. This is recommended when the computed degrees of
+    freedom is larger than the complete data degrees of freedom. By
+    default, adjust=FALSE.}
+
+  
 }
 \details{
   \code{formula1} should be in the form of \code{response ~ predictor(s) + haplotype(s)} and \code{formula2} should be in the form \code{response ~ predictor(s)}. A formula has an implied intercept term. See 'formula' for more details of allowed formulae.
@@ -34,12 +42,17 @@ haplo.quant(formula1, formula2, pheno, haplo, sim,
 
   \item{formula1}{\code{formula1} passed to \code{haplo.quant}.}
   \item{formula1}{\code{formula2} passed to \code{haplo.quant}.}
-  \item{results}{a table containing the coefficients, standard errors and p-values of the parameter estimates, averaged over the \code{sim} models performed.}
+  \item{results}{a table containing the coefficients, averaged over the
+    \code{sim} models performed; standard errors, computed as the sum of
+    the between-imputation and within-imputation variance; and
+    p-values, based on a t-distribution with appropriately computed
+  degrees of freedom, of the parameter estimates.}
   \item{empiricalResults}{a list containing the coefficients, standard errors and p-values calculated at each simulation.}
   \item{rsquared}{r-squared values for models fit using \code{formula1} and \code{formula2}.}
   \item{ANOD}{analysis of deviance table for the model fit using \code{formula1}, averaged over all simulations.}
   \item{logLik}{the average log-likelihood for the linear model fit using \code{formula1}.}
-  \item{LRT}{a likelihood ratio test, testing for significant improvement of the model when haplotypic parameters are included.}
+  \item{WALD}{a Wald test, testing for significant improvement of the
+    model when haplotypic parameters are included.}
   \item{predicted}{estimated marginal means of the outcome variable broken down by haplotype levels, evaluated at mean values of the model predictors, averaged over all simulations.}
   \item{empiricalPredicted}{estimated marginal means calculated at each simulation.}
   \item{aic}{Akaike Information Criterion for the linear model fit using formula1, averaged over all simulations.}
@@ -56,7 +69,11 @@ McCaskie, P.A., Carter, K.W, Hazelton, M., Palmer, L.J. (2007) SimHap: A compreh
 
 Rubin, D.B. (1996) Multiple imputation after 18+ years (with discussion). \emph{Journal of the American Statistical Society}, 91:473-489.
 
-Wilkinson, G.N., Rogers, C.E. (1973) Symbolic descriptions of factorial models for analysis of variance. \emph{Applied Statistics}, 22, 392-9.
+Wilkinson, G.N., Rogers, C.E. (1973) Symbolic descriptions of factorial
+models for analysis of variance. \emph{Applied Statistics}, 22, 392-9.
+
+Barnard, J., Rubin, D.B. (1999) Small-sample degrees of freedom with
+multiple imputation. \emph{Biometrika}, 86, 948-955.
 
 }
 \author{Pamela A. McCaskie}

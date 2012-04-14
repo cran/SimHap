@@ -1,25 +1,27 @@
 `haplo.bin` <-
-function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL) {
+function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL, adjust=FALSE) {
   library(stats)
   call <- match.call()
-  
+
   hapFreqs <- haplo$hapObject$final.freq
   haplo <- haplo$hapData
-  
+
+  if(!identical(as.character(unique(pheno$ID)), as.character(unique(haplo$ID)))) stop("Phenotype data and Haplotype data are not in the same order.")
+
   formula1_nofactors <- formula1
   formula1_terms <- attr(terms(formula1_nofactors), "term.labels")
-  
+
   if(any(regexpr(":", formula1_terms)!=-1)){
         formula1_terms <- formula1_terms[-which(regexpr(":", formula1_terms)!=-1)]
   }
-  
+
   if(any(regexpr("factor", formula1_terms)==1)) {
         formula1_terms[which(regexpr("factor", formula1_terms)==1)] <- substr(formula1_terms[which(regexpr("factor", formula1_terms)==1)],8,nchar(formula1_terms[which(regexpr("factor", formula1_terms)==1)])-1)
   }
   #else formula1_terms <- attr(terms(formula1_nofactors), "term.labels")
-  
+
   freq.estnums <- freqTest(terms=formula1_terms, freqs=hapFreqs, n=length(unique(haplo[,1])), effect=effect)
-  
+
   # first column retains number of non-zero weights for individual
   # second column holds the current iteration index for the next weight change
   num_weights <- matrix(0, nrow=nrow(pheno), ncol=2)
@@ -40,10 +42,10 @@ function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL) {
 
   for(i in 2:nrow(haplo)) {
     tmpID <- haplo[i,1]
- 
+
     if(lastID==tmpID) {
 
-      # only increment count if the weight is not too small in the context 
+      # only increment count if the weight is not too small in the context
       # of the number of iterations
       #if((sim*(as.numeric(haplo[i,ncol(haplo)]))) > 1)
         count <- count+1
@@ -68,7 +70,7 @@ function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL) {
   indiv_hap1s <- matrix(0, nrow=num_indivs, ncol=biggest)
   indiv_hap2s <- matrix(0, nrow=num_indivs, ncol=biggest)
 
-  
+
   lastID <- haplo[1,1]
   indiv_hap1s[1,1] <- haplo[1,2]
   indiv_weights[1,1] <- haplo[1,4]
@@ -79,11 +81,10 @@ function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL) {
   # ****************************
   print("* Populating individual haplotypes and posterior probabilities ...")
   # This section makes a count of the number of occurences of each individual
-
   for(i in 2:nrow(haplo)) {
     tmpID <- haplo[i,1]
     this_weight <- as.numeric(haplo[i,ncol(haplo)])
-    
+
     # one attempt at rounding too small weight*sim up to '1'
     if((sim*this_weight) < 1)
       this_weight <- 1 / sim
@@ -115,18 +116,18 @@ function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL) {
 
   # take care of the last element
   num_weights[indiv,1] <- count
-  
+
   print("  Done")
-  # **************************** 
+  # ****************************
 
   # ****************************
   print("* Distributing individual occurrences across the simulations by posterior probability ...")
   # main loop across all iterations
   fit2.glm <- eval(substitute(glm(formula2, data=pheno, family=binomial, subset=subset), list(subset=sub)))
-  
+
   #log likelihood for smaller, nested model (without haplotypes)
   lnLsmall <- logLik(fit2.glm)
-  
+
   for(i in 1:sim) {
 
     # determine weight for each individual and populate hapXs vectors
@@ -197,9 +198,9 @@ function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL) {
   haplo_table <- table(c(haplo[,2],haplo[,3]))
   num_haplos <- dim(haplo_table)
   names_haplos <- names(haplo_table)
-  
 
-  # prepare the reusable dataframe container ... 
+
+  # prepare the reusable dataframe container ...
   dataframe_extra <- matrix(0, nrow=num_indivs, ncol=num_haplos)
   dataframe_extra <- as.data.frame(dataframe_extra)
   for(i in 1:ncol(dataframe_extra)){
@@ -209,16 +210,13 @@ function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL) {
 #------------------------------------
 
   coef.dat <- NULL
-  OR.dat <- NULL
-  ORupper.dat <- NULL
-  ORlower.dat <- NULL
   p.dat <- NULL
   stderror.dat <- NULL
   out <- NULL
   output <- NULL
   pvals <- NULL
   stderrors <- NULL
-  
+
   anovp.dat <- NULL
   anovdf.dat <- NULL
   anovresdf.dat <- NULL
@@ -236,6 +234,8 @@ function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL) {
   lr.dat <- NULL
   lrt.dat <- NULL
   lnLbig.dat <- NULL
+  vcov.list <- list(NULL)
+  beta.list <- list(NULL)
 
   # the dynamic point at which the algorithm reports progress
   five_percent <- round(sim*0.05)
@@ -265,10 +265,10 @@ function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL) {
     }
     # Recessive model
     if(effect=="rec") {
-      for(j in 1:num_indivs) {  
+      for(j in 1:num_indivs) {
         simul <- sim_choice[j,i]
         hap1_str <- hap1s_result[simul, j]
-        
+
         if(hap1_str == hap2s_result[simul, j]) {
           colnumber <- match(hap1_str, names_haplos)
           dataframe_extra[j,colnumber] <- 1
@@ -300,11 +300,11 @@ function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL) {
     # perform the glm with the current dataframe
     # glm
     fit1.glm <- eval(substitute(glm(formula1, data=dataframe, family=binomial, subset=subset), list(subset=sub)))
-    
+
     fit.glm <- as.data.frame(summary(fit1.glm)$coefficients)
     anov <- as.data.frame(anova(fit2.glm, fit1.glm, test="Chisq"))
     anovfull <- as.data.frame(anova(fit1.glm, test="Chisq"))
-    
+
     #extract log-likelihood of model with haplotypes
     lnLbig <- logLik(fit1.glm)
     lnLbig.dat <- rbind(lnLbig.dat, lnLbig)
@@ -314,11 +314,15 @@ function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL) {
     lrt <- pchisq(lr,df=lr.df)
     lrt.dat <- rbind(lrt.dat, lrt)
 
+    # extract variance-covariance matrix
+    vcov.list[[i]] <- vcov(fit1.glm)
+    beta.list[[i]] <- fit.glm$Estimate
+
     aic <- AIC(fit1.glm)
     aic.dat <- rbind(aic.dat, aic)
-    
+
     # add this row to anovfull.dat
-    anovfullp.row <- anovfull$"P(>|Chi|)"
+    anovfullp.row <- anovfull$"Pr(>Chi)"
     anovfullp.dat <- rbind(anovfullp.dat, anovfullp.row)
     anovfulldf.row <- anovfull$Df
     anovfulldf.dat <- rbind(anovfulldf.dat, anovfulldf.row)
@@ -327,7 +331,7 @@ function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL) {
 
     # add this row to anovp.dat
 
-    anovp.row <- anov$"P(>|Chi|)"[2]
+    anovp.row <- anov$"Pr(>Chi)"[2]
     anovp.dat <- rbind(anovp.dat, anovp.row)
     anovdf.row <- anov$Df
     anovdf.dat <- rbind(anovdf.dat, anovdf.row)
@@ -339,30 +343,22 @@ function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL) {
     coef.dat <- rbind(coef.dat, coef.row)
     stderror.row <- fit.glm$"Std. Error"
     stderror.dat <- rbind(stderror.dat, stderror.row)
-    OR.row <- exp(fit.glm$Estimate)
-    OR.dat <- rbind(OR.dat, OR.row)
 
-    # extract some elements from the glm summary method and add row to p.dat    
+
+    # extract some elements from the glm summary method and add row to p.dat
     pvals <- t(fit.glm[ncol(fit.glm)])
     p.dat <- rbind(p.dat, pvals)
 
-    # add a row to OR
-    ORlower.row <- exp(fit.glm$Estimate - 1.96 * fit.glm$"Std. Error")
-    ORlower.dat <- rbind(ORlower.dat, ORlower.row)
-    
-    ORupper.row <- exp(fit.glm$Estimate + 1.96 * fit.glm$"Std. Error")
-    ORupper.dat <- rbind(ORupper.dat, ORupper.row)
-       
     # report on progress
     if(i==report) {
       percentage <- report * 100 / sim
       print(paste(percentage, "%"))
       report <- report + five_percent
     }
-  } 
+  }
 
   # nullify the row names
-  
+
   row.names(anovdf.dat) <- NULL
   row.names(anovp.dat) <- NULL
   row.names(anovresdf.dat) <- NULL
@@ -371,18 +367,15 @@ function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL) {
   row.names(anovfullp.dat) <- NULL
   row.names(anovfullresdf.dat) <- NULL
 
-  row.names(OR.dat) <- NULL
   row.names(p.dat) <- NULL
-  row.names(ORupper.dat) <- NULL
-  row.names(ORlower.dat) <- NULL
   row.names(stderror.dat) <- NULL
   row.names(coef.dat) <- NULL
-  
+
   row.names(aic.dat) <- NULL
   row.names(lr.dat) <- NULL
   row.names(lrt.dat) <- NULL
   row.names(lnLbig.dat) <- NULL
-  
+
   anovdf.dat <- as.data.frame(anovdf.dat)
   anovp.dat <- as.data.frame(anovp.dat)
   anovresdf.dat <- as.data.frame(anovresdf.dat)
@@ -395,104 +388,106 @@ function(formula1, formula2, pheno, haplo, sim, effect="add", sub=NULL) {
   lr.dat <- as.data.frame(lr.dat)
   lrt.dat <- as.data.frame(lrt.dat)
   lnLbig.dat <- as.data.frame(lnLbig.dat)
-  
-  OR.dat <- as.data.frame(OR.dat)
-  ORupper.dat <- as.data.frame(ORupper.dat)
-  ORlower.dat <- as.data.frame(ORlower.dat)
+
   p.dat <- as.data.frame(p.dat)
   coef.dat <- as.data.frame(coef.dat)
   stderror.dat <- as.data.frame(stderror.dat)
-  
-  names(p.dat) <- names(OR.dat)
-  names(stderror.dat) <- names(OR.dat)
-  names(coef.dat) <- names(OR.dat)
+
   names(aic.dat) <- c("AIC")
-  
-  allResults <- list(OR=OR.dat, OR.lower.95CI=ORlower.dat, OR.upper.95CI=ORupper.dat, P.Value=p.dat)
-  names(allResults$OR) <- row.names(fit.glm)
-  names(allResults$OR.lower.95CI) <- row.names(fit.glm)
-  names(allResults$OR.upper.95CI) <- row.names(fit.glm)
+
+  allResults <- list(Coef=coef.dat, Std.Error=stderror.dat, P.Value=p.dat)
+  names(allResults$Coef) <- row.names(fit.glm)
+  names(allResults$Std.Error) <- row.names(fit.glm)
   names(allResults$P.Value) <- row.names(fit.glm)
-  
-  sum.of.squares <- NULL
-  for(i in 1:ncol(stderror.dat)){
-       sum.of.squares <- cbind(sum.of.squares,sum(stderror.dat[,i]^2))
+
+#  allResults <- list(OR=OR.dat, OR.lower.95CI=ORlower.dat, OR.upper.95CI=ORupper.dat, P.Value=p.dat)
+#  names(allResults$OR) <- row.names(fit.glm)
+#  names(allResults$OR.lower.95CI) <- row.names(fit.glm)
+#  names(allResults$OR.upper.95CI) <- row.names(fit.glm)
+#  names(allResults$P.Value) <- row.names(fit.glm)
+
+#  sum.of.squares <- NULL
+#  for(i in 1:ncol(stderror.dat)){
+#       sum.of.squares <- cbind(sum.of.squares,sum(stderror.dat[,i]^2))
+#  }
+#  sum.of.squares <- as.data.frame(sum.of.squares)
+#  names(sum.of.squares) <- names(stderror.dat)
+#  se1 <- sqrt(sum.of.squares/nrow(stderror.dat))
+#  se2 <- sd(coef.dat)
+#  se.adj <- sqrt(se1^2 + se2^2)
+
+  # Combine inferences across the imputed datasets
+  out.mi <- UVI(coef.dat, stderror.dat^2,n=num_indivs, ADJ=adjust)
+
+  ind.haploeffect <- which(!is.element(names(fit1.glm$coefficients), names(fit2.glm$coefficients)))
+  p.full <- length(fit1.glm$coefficients)
+  L.contrast <- NULL
+  for(j in 1:length(ind.haploeffect)){
+    L.contrast <- rbind(L.contrast, c(rep(0, ind.haploeffect[j]-1),1,rep(0, p.full-ind.haploeffect[j])) )
   }
-  sum.of.squares <- as.data.frame(sum.of.squares)
-  names(sum.of.squares) <- names(stderror.dat)
-  se1 <- sqrt(sum.of.squares/nrow(stderror.dat))
-  se2 <- sd(coef.dat)
-  se.adj <- sqrt(se1^2 + se2^2)
-  
+  out.mi.haps <- MVI(beta.list, vcov.list, L=L.contrast)
+  out.mi.haps <- out.mi.haps
+  out.coef <- as.numeric(formatC(out.mi$coefficients))
+  out.pval <- as.numeric(formatC(out.mi$p.value))
+  out.se <- as.numeric(formatC(out.mi$se))
+  #if(!is.null(predicted.dat)) predicted.vals <- formatC(mean(predicted.dat))
 
-  output$OR <- formatC(mean(OR.dat))
-  output$ORupper <- formatC(mean(ORupper.dat))
-  output$ORlower <- formatC(mean(ORlower.dat))
-  #output$ORupper <- as.vector(formatC(exp(mean(coef.dat)+1.96*se)))
-  #output$ORlower <- as.vector(formatC(exp(mean(coef.dat)-1.96*se)))
-  output$pval <- formatC(mean(p.dat))
+  summary.coefs <- data.frame(cbind(out.coef, out.se, out.pval), row.names=row.names(fit.glm))
+  names(summary.coefs) <- c("Coefficient", "Std.error", "P.Value")
 
-  summary.coefs <- data.frame(cbind(mean(allResults$OR), as.numeric(exp(mean(coef.dat)-1.96*se.adj)), as.numeric(exp(mean(coef.dat)+1.96*se.adj)), mean(allResults$P.Value)))
-  names(summary.coefs) <- c("Odds.Ratio", "ORlower", "ORupper", "P.Value")
-  LRT.out1 <- cbind(round(mean(lnLbig.dat[,1]),digits=4), attr(lnLbig, "df"), round(mean(lr.dat),digits=4), signif((1-mean(lrt.dat)), digits=4))
-  LRT.out2 <- cbind(round(lnLsmall[1],digits=4), attr(lnLsmall, "df"), "", "")
-  row.names(LRT.out1) <- c("Full model")
-  row.names(LRT.out2) <- c("Non-genetic")
+  WALD.out <- cbind(round(out.mi.haps[4]), round(out.mi.haps[5],2), round(out.mi.haps[1], digits=4), round(out.mi.haps[3], digits=4))
+  WALD.out <- as.data.frame(WALD.out)
+  names(WALD.out) <- c("Num DF","Den DF","F.Stat", "P.Value")
+  row.names(WALD.out) <- ""
 
-  LRT <- rbind(LRT.out1, LRT.out2)
-  LRT <- as.data.frame(LRT)
-  names(LRT) <- c("logLik", "df", "LR", "P.Value")
 
-  anovfull.out <- cbind(mean(anovfullresdf.dat), mean(anovfulldf.dat), formatC(mean(anovfullp.dat)))
+  anovfull.out <- cbind(colMeans(anovfullresdf.dat), colMeans(anovfulldf.dat), formatC(colMeans(anovfullp.dat)))
   row.names(anovfull.out) <- row.names(anovfull)
   anovfull.out[1,2] <- ""
   anovfull.out[1,3] <- ""
   anovfull.out <- as.data.frame(anovfull.out)
   names(anovfull.out) <- c("Residual DF", "DF", "P-Value")
-  likelihood.out <- paste("'log Lik'", round(mean(lnLbig.dat), digits=3), paste("(df=", attr(lnLbig, "df"), ")", sep=""))
-  
-  anov.out1 <- cbind(mean(anovresdf.dat[1]), "", "")
+  likelihood.out <- paste("'log Lik'", round(colMeans(lnLbig.dat), digits=3), paste("(df=", attr(lnLbig, "df"), ")", sep=""))
+
+  anov.out1 <- cbind(colMeans(anovresdf.dat[1]), "", "")
   row.names(anov.out1) <- c("1")
-  anov.out2 <- cbind(mean(anovresdf.dat[2]), mean(anovdf.dat[2]), signif(mean(anovp.dat), digits=3))
+  anov.out2 <- cbind(colMeans(anovresdf.dat[2]), colMeans(anovdf.dat[2]), signif(colMeans(anovp.dat), digits=3))
   row.names(anov.out2) <- c("2")
 
-  
-  
+
+
   print("  Done")
   # ****************************
 
   # Arrange the output data
 
-  for(i in 1:ncol(OR.dat)){
+  for(i in 1:ncol(coef.dat)){
 
-    output$OR.CI[i] <- paste("(",formatC(quantile(OR.dat[,i], probs=c(0.025), na.rm=TRUE)),",",formatC(quantile(OR.dat[,i], probs=c(0.975), na.rm=TRUE)),")", sep="")
-    output$ORupper.CI[i] <- paste("(",formatC(quantile(ORupper.dat[,i], probs=c(0.025), na.rm=TRUE)),",",formatC(quantile(ORupper.dat[,i], probs=c(0.975), na.rm=TRUE)),")", sep="")
-    output$ORlower.CI[i] <- paste("(",formatC(quantile(ORlower.dat[,i], probs=c(0.025), na.rm=TRUE)),",",formatC(quantile(ORlower.dat[,i], probs=c(0.975), na.rm=TRUE)),")", sep="")
-    
-    output$pval.CI[i] <- paste("(",formatC(quantile(p.dat[,i], probs=c(0.025), na.rm=TRUE)),",",formatC(quantile(p.dat[,i], probs=c(0.975), na.rm=TRUE)),")", sep="")
-    
+    out$coef.CI[i] <- paste("(",formatC(quantile(coef.dat[,i], probs=c(0.025), na.rm=TRUE)),",",formatC(quantile(coef.dat[,i], probs=c(0.975), na.rm=TRUE)),")", sep="")
+    out$pval.CI[i] <- paste("(",formatC(quantile(p.dat[,i], probs=c(0.025), na.rm=TRUE)),",",formatC(quantile(p.dat[,i], probs=c(0.975), na.rm=TRUE)),")", sep="")
+    out$se.CI[i] <- paste("(",formatC(quantile(stderror.dat[,i], probs=c(0.025), na.rm=TRUE)),",",formatC(quantile(stderror.dat[,i], probs=c(0.975), na.rm=TRUE)),")", sep="")
+
   }
-
-  out <- data.frame(cbind(output$OR, output$OR.CI, output$ORlower, output$ORlower.CI, output$ORupper, output$ORupper.CI, output$pval, output$pval.CI))
-
-  names(out) <- c("OR", "OR.quantiles", "ORlower.95", "ORlower.quantiles", "ORupper.95", "ORupper.quantiles", "P.Val", "P.Val.quantiles")
+  out <- data.frame(cbind(out.coef, out$coef.CI, out.se, out$se.CI, out.pval, out$pval.CI))
+  names(out) <- c("Coef", "Coef.quantiles", "Std.Error", "Std.Error.quantiles", "P.Val", "P.Val.quantiles")
   row.names(out) <- row.names(fit.glm)
-  
+
+
   anov.out <- rbind(anov.out1, anov.out2)
   anov.out <- as.data.frame(anov.out)
 
   names(anov.out) <- c("Residual DF", "DF", "P.Value")
-  
+
   if(effect=="add") Effect <- ("ADDITIVE")
   if(effect=="dom") Effect <- ("DOMINANT")
   if(effect=="rec") Effect <- ("RECESSIVE")
-  
+
   "%w/o%" <- function(x,y) x[!x %in% y]
   invars <- names(fit1.glm$coef)
   check <- invars %w/o% row.names(out)
   if(length(check) != 0) cat(c(check, "removed due to singularities"), "\n")
-  
-  out.list <- list(formula1=formula1, formula2=formula2, results=out,empiricalResults=allResults, summary.coefs=summary.coefs,ANOD=anovfull.out,logLik=likelihood.out, LRT=LRT, aic=mean(aic.dat), aicEmpirical=aic.dat, effect=Effect)
+
+  out.list <- list(formula1=formula1, formula2=formula2, results=out,empiricalResults=allResults, summary.coefs=summary.coefs,ANOD=anovfull.out,logLik=likelihood.out, WALD=WALD.out, aic=colMeans(aic.dat), aicEmpirical=aic.dat, effect=Effect)
   class(out.list) <- "hapBin"
   return(out.list)
 }

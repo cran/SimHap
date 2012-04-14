@@ -2,6 +2,7 @@
 \alias{summary.epiClogit}
 \alias{print.summary.epiClogit}
 
+
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{Summarizing epidemiological analysis models for matched case-control data}
 \description{

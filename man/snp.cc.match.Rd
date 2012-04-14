@@ -40,8 +40,7 @@ snp.cc.match(formula1, formula2, geno, pheno, sub = NULL)
 McCaskie, P.A., Carter, K.W. Hazelton, M., Palmer, L.J. (2007) SimHap: A comprehensive modeling framework for epidemiological outcomes and a multiple-imputation approach to haplotypic analysis of population-based data, [online] www.genepi.org.au/simhap.
 }
 \author{Pamela A. McCaskie}
-\note{
-}
+
 \seealso{\code{\link{snp.bin}}}
 \examples{
 

@@ -103,14 +103,14 @@ function(formula1, formula2, geno, pheno, sub=NULL){
    anov <- as.data.frame(anova(fit2.clogit, fit1.clogit, test="Chisq"))
    anovp.row <- anov$"P(>|Chi|)"[2]
    anovdf.row <- anov$Df
-   anovresdf.row <- anov$"Resid. Df"
-   anov.out1 <- cbind(anovresdf.row[1], "", "")
+   anovloglik <- anov$loglik
+   anov.out1 <- cbind(round(anovloglik[1],digits=3), "", "")
    row.names(anov.out1) <- c("1")
-   anov.out2 <- cbind(anovresdf.row[2], anovdf.row[2], signif(anovp.row, digits=3))
+   anov.out2 <- cbind(round(anovloglik[2], digits=3), anovdf.row[2], signif(anovp.row, digits=3))
    row.names(anov.out2) <- c("2")
    anov.out <- rbind(anov.out1, anov.out2)
    anov.out <- as.data.frame(anov.out)
-   names(anov.out) <- c("Residual DF", "DF", "P-Value")
+   names(anov.out) <- c("loglik", "DF", "P-Value")
  
    fit1.rsquared <- summary(fit1.clogit)$rsq[1]
    fit2.rsquared <- summary(fit2.clogit)$rsq[1]

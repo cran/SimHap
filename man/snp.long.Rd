@@ -6,7 +6,7 @@
   \code{snp.long} is used to fit linear mixed effects models to single SNP genotype and phenotype data for longitudinal outcomes.
 }
 \usage{
-snp.long(fixed, random, geno, pheno, cor = "corCAR1", form=~1, 
+snp.long(fixed, random, geno, pheno, cor = "corCAR1", form=~1,
 	value = 0.2, sub = NULL)
 }
 %- maybe also 'usage' for other objects documented here.
@@ -25,11 +25,11 @@ snp.long(fixed, random, geno, pheno, cor = "corCAR1", form=~1,
   \code{snp.long} returns an object of 'class' \code{snpLong}.
 
      The \code{summary} function can be used to obtain and print a
-     summary of the results.  
+     summary of the results.
 
      An object of class \code{snpLong} is a list containing the
      following components:
-     
+
   \item{results}{a table containing the coefficients, standard errors and p-values of the parameter estimates.}
   \item{fixed_formula}{fixed effects formula.}
   \item{random_formula}{random effects formula.}
@@ -72,13 +72,13 @@ data(SNPlong.dat)
 longGeno.dat <- SNP2Geno(SNPlong.dat, baseline=c("AA", "GG", "V2V2"))
 
 data(longPheno.dat)
-mymodel <- snp.long(fixed=fev1f~height+weight+SNP_1_add, random=~1|id, 
-	geno=longGeno.dat, pheno=longPheno.dat, form=~year|id)
+mymodel <- snp.long(fixed=fev1f~height+weight+SNP_1_add, random=~1|ID,
+	geno=longGeno.dat, pheno=longPheno.dat, form=~year|ID)
 summary(mymodel)
 
 # example with a subsetting variable, looking at males only
-mymodel <- snp.long(fixed=fev1f~height+weight+SNP_1_add, random=~1|id, 
-	geno=longGeno.dat, pheno=longPheno.dat, form=~year|id, 
+mymodel <- snp.long(fixed=fev1f~height+weight+SNP_1_add, random=~1|ID,
+	geno=longGeno.dat, pheno=longPheno.dat, form=~year|ID,
 	sub=expression(sex==1))
 summary(mymodel)
 

@@ -1,30 +1,33 @@
-`haplo.long` <- 
-function(fixed, random, pheno, haplo, cor="corCAR1", value=0.2, form=~1, sim, effect="add", sub=NULL) {
-  
+`haplo.long` <-
+function(fixed, random, pheno, haplo, cor=NULL, value=0.2, form=~1, sim, effect="add", sub=NULL, adjust=FALSE) {
+
   library(stats)
   call <- match.call()
   library(nlme)
   hapFreqs <- haplo$hapObject$final.freq
   haplo <- haplo$hapData
-  
+
+  if(!identical(as.character(unique(pheno$ID)), as.character(unique(haplo$ID)))) stop("Phenotype data and Haplotype data are not in the same order.")
+
+
   formula_fixed <- formula(fixed)
   formula_random <- formula(random)
-  
+
   formula_fixednofactors <- formula_fixed
   formula_fixedterms <- attr(terms(formula_fixednofactors), "term.labels")
-  
+
   if(any(regexpr(":", formula_fixedterms)!=-1)){
         formula_fixedterms <- formula_fixedterms[-which(regexpr(":", formula_fixedterms)!=-1)]
   }
-  
-  
+
+
   if(any(regexpr("factor", formula_fixedterms)==1)) {
         formula_fixedterms[which(regexpr("factor", formula_fixedterms)==1)] <- substr(formula_fixedterms[which(regexpr("factor", formula_fixedterms)==1)],8,nchar(formula_fixedterms[which(regexpr("factor", formula_fixedterms)==1)])-1)
-  }   
+  }
   #else formula_fixedterms <- attr(terms(formula_fixednofactors), "term.labels")
-  
+
   freq.estnums <- freqTest(terms=formula_fixedterms, freqs=hapFreqs, n=length(unique(haplo[,1])), effect=effect)
-  
+
   num_indivs <- length(unique(as.numeric(haplo[,1])))
   #num_indivs <- as.numeric(haplo[nrow(haplo),1])
 
@@ -47,10 +50,10 @@ function(fixed, random, pheno, haplo, cor="corCAR1", value=0.2, form=~1, sim, ef
 
   for(i in 2:nrow(haplo)) {
     tmpID <- haplo[i,1]
- 
+
     if(lastID==tmpID) {
 
-      # only increment count if the weight is not too small in the context 
+      # only increment count if the weight is not too small in the context
       # of the number of iterations
         count <- count+1
     }
@@ -73,7 +76,7 @@ function(fixed, random, pheno, haplo, cor="corCAR1", value=0.2, form=~1, sim, ef
   indiv_hap1s <- matrix(0, nrow=num_indivs, ncol=biggest)
   indiv_hap2s <- matrix(0, nrow=num_indivs, ncol=biggest)
 
-  
+
   lastID <- haplo[1,1]
   indiv_weights[1,1] <- haplo[1,4]
   indiv_hap1s[1,1] <- haplo[1,2]
@@ -96,7 +99,7 @@ function(fixed, random, pheno, haplo, cor="corCAR1", value=0.2, form=~1, sim, ef
     # the next element is the same ID as the last
     if(lastID==tmpID) {
 
-      # only increment count if the weight is not too small in the context 
+      # only increment count if the weight is not too small in the context
       # of the number of iterations
       if((sim*this_weight) >= 1)
         count <- count+1
@@ -119,14 +122,14 @@ function(fixed, random, pheno, haplo, cor="corCAR1", value=0.2, form=~1, sim, ef
 
   # take care of the last element
   num_weights[indiv,1] <- count
-  
+
   print("  Done")
-  # **************************** 
+  # ****************************
 
   # ****************************
   print("* Distributing individual occurrences across the simulations by posterior probability ...")
   # main loop across all iterations
-  
+
   for(i in 1:sim) {
 
     # determine weight for each individual and populate hapXs vectors
@@ -197,9 +200,9 @@ function(fixed, random, pheno, haplo, cor="corCAR1", value=0.2, form=~1, sim, ef
   haplo_table <- table(c(haplo[,2],haplo[,3]))
   num_haplos <- dim(haplo_table)
   names_haplos <- names(haplo_table)
-  
 
-  # prepare the reusable dataframe container ... 
+
+  # prepare the reusable dataframe container ...
   dataframe_extra <- matrix(0, nrow=num_indivs, ncol=num_haplos)
 
   # perform loop through all iterations, constructing the dataframe and applying glm to each one
@@ -211,14 +214,13 @@ function(fixed, random, pheno, haplo, cor="corCAR1", value=0.2, form=~1, sim, ef
   output <- NULL
   pvals <- NULL
   stderrors <- NULL
-  
+
   anov.out <- NULL
   anov.out1 <- NULL
   anov.out2 <- NULL
   anovfull.out <- NULL
   anovfullp.dat <- NULL
   anovfulldf.dat <- NULL
-  
   aic.dat <- NULL
   #lr.dat <- NULL
   #lrt.dat <- NULL
@@ -254,10 +256,10 @@ function(fixed, random, pheno, haplo, cor="corCAR1", value=0.2, form=~1, sim, ef
     }
     # Recessive model
     if(effect=="rec") {
-      for(j in 1:num_indivs) {  
+      for(j in 1:num_indivs) {
         simul <- sim_choice[j,i]
         hap1_str <- hap1s_result[simul, j]
-        
+
         if(hap1_str == hap2s_result[simul, j]) {
           colnumber <- match(hap1_str, names_haplos)
           dataframe_extra[j,colnumber] <- 1
@@ -295,7 +297,7 @@ function(fixed, random, pheno, haplo, cor="corCAR1", value=0.2, form=~1, sim, ef
     phen_ID <- pheno[,1]
     for(h in 2:nrow(pheno)) {
       current_phen_ID <- phen_ID[h]
-  
+
       if (current_phen_ID != last_phen_ID) {
         de_row <- de_row + 1
       }
@@ -318,13 +320,23 @@ function(fixed, random, pheno, haplo, cor="corCAR1", value=0.2, form=~1, sim, ef
     # perform the lme model with the current dataframe
     # lme
 
+    if(is.null(cor)) {
+    if(length(sub)==0) {
+      fit1.lme <- lme(fixed=fixed, data=dataframe, random=random, na.action=na.omit)
+      }
+
+    else {
+      fit1.lme <- eval(substitute(lme(fixed=fixed, data=dataframe, random=random, na.action=na.omit, subset=subset),list(subset=sub)))
+      }
+    }
+
     if(cor=="corCAR1") {
     if(length(sub)==0) {
       fit1.lme <- lme(fixed=fixed, data=dataframe, random=random, correlation=corCAR1(form= form), na.action=na.omit)
       }
-    
+
     else {
-      fit1.lme <- eval(substitute(lme(fixed=fixed, data=dataframe, random=random, correlation=corCAR1(value=value, form= form), 
+      fit1.lme <- eval(substitute(lme(fixed=fixed, data=dataframe, random=random, correlation=corCAR1(value=value, form= form),
       na.action=na.omit, subset=subset),list(subset=sub)))
       }
     }
@@ -334,9 +346,9 @@ function(fixed, random, pheno, haplo, cor="corCAR1", value=0.2, form=~1, sim, ef
     if(length(sub)==0) {
       fit1.lme <- lme(fixed=fixed, data=dataframe, random=random, correlation=corAR1(value=value, form= form), na.action=na.omit)
       }
-    
+
     else {
-      fit1.lme <- eval(substitute(lme(fixed=fixed, data=dataframe, random=random, correlation=corAR1(value=value, form= form), 
+      fit1.lme <- eval(substitute(lme(fixed=fixed, data=dataframe, random=random, correlation=corAR1(value=value, form= form),
       na.action=na.omit, subset=subset),list(subset=sub)))
       }
     }
@@ -345,9 +357,9 @@ function(fixed, random, pheno, haplo, cor="corCAR1", value=0.2, form=~1, sim, ef
     if(length(sub)==0) {
       fit1.lme <- lme(fixed=fixed, data=dataframe, random=random, correlation=corCompSymm(value=value, form=form), na.action=na.omit)
       }
-    
+
     else {
-      fit1.lme <- eval(substitute(lme(fixed=fixed, data=dataframe, random=random, correlation=corCompSymm(value=value, form=form), 
+      fit1.lme <- eval(substitute(lme(fixed=fixed, data=dataframe, random=random, correlation=corCompSymm(value=value, form=form),
       na.action=na.omit, subset=subset),list(subset=sub)))
       }
     }
@@ -358,9 +370,10 @@ function(fixed, random, pheno, haplo, cor="corCAR1", value=0.2, form=~1, sim, ef
     anovfullp.dat <- rbind(anovfullp.dat, anovfullp.row)
     anovfulldf.row <- anovfull$numDF
     anovfulldf.dat <- rbind(anovfulldf.dat, anovfulldf.row)
-  
+
     lnLbig <- logLik(fit1.lme)
     lnLbig.dat <- rbind(lnLbig.dat, lnLbig)
+
 
     aic <- AIC(fit1.lme)
     aic.dat <- rbind(aic.dat, aic)
@@ -383,7 +396,7 @@ function(fixed, random, pheno, haplo, cor="corCAR1", value=0.2, form=~1, sim, ef
       print(paste(percentage, "%"))
       report <- report + five_percent
     }
-  } 
+  }
 
   # nullify the row names
   row.names(coef.dat) <- NULL
@@ -393,7 +406,7 @@ function(fixed, random, pheno, haplo, cor="corCAR1", value=0.2, form=~1, sim, ef
   row.names(lnLbig.dat) <- NULL
   row.names(anovfulldf.dat) <- NULL
   row.names(anovfullp.dat) <- NULL
- 
+
   aic.dat <- as.data.frame(aic.dat)
   lnLbig.dat <- as.data.frame(lnLbig.dat)
 
@@ -402,65 +415,68 @@ function(fixed, random, pheno, haplo, cor="corCAR1", value=0.2, form=~1, sim, ef
   stderror.dat <- as.data.frame(stderror.dat)
   anovfulldf.dat <- as.data.frame(anovfulldf.dat)
   anovfullp.dat <- as.data.frame(anovfullp.dat)
-  
+
   names(coef.dat) <- row.names(sum.lme)
   names(p.dat) <- row.names(sum.lme)
   names(stderror.dat) <- row.names(sum.lme)
   names(aic.dat) <- c("AIC")
-  
+
   allResults <- list(Coef=coef.dat, Std.Error=stderror.dat, P.Value=p.dat)
   names(allResults$Coef) <- row.names(sum.lme)
   names(allResults$Std.Error) <- row.names(sum.lme)
   names(allResults$P.Value) <- row.names(sum.lme)
- 
-  sum.of.squares <- NULL
-  for(i in 1:ncol(allResults$Std.Error)){
-       sum.of.squares <- cbind(sum.of.squares,sum(allResults$Std.Error[,i]^2))
-  }
-  sum.of.squares <- as.data.frame(sum.of.squares)
-  names(sum.of.squares) <- names(allResults$Std.Error)
-  se1 <- sqrt(sum.of.squares/nrow(allResults$Std.Error))
-  se2 <- sd(allResults$Coef)
-  se.adj <- sqrt(se1^2 + se2^2)
-  
-  output$coef <- formatC(mean(coef.dat))
-  output$pval <- formatC(mean(p.dat))
-  output$se <- formatC(mean(stderror.dat))
- 
-  summary.coefs <- data.frame(cbind(mean(allResults$Coef), as.numeric(as.vector(se.adj)), mean(allResults$P.Value)))
+
+#  sum.of.squares <- NULL
+#  for(i in 1:ncol(allResults$Std.Error)){
+#       sum.of.squares <- cbind(sum.of.squares,sum(allResults$Std.Error[,i]^2))
+#  }
+#  sum.of.squares <- as.data.frame(sum.of.squares)
+#  names(sum.of.squares) <- names(allResults$Std.Error)
+#  se1 <- sqrt(sum.of.squares/nrow(allResults$Std.Error))
+#  se2 <- sd(allResults$Coef)
+#  se.adj <- sqrt(se1^2 + se2^2)
+
+  # Combine inferences across the imputed datasets
+  df.vec <- sum.lme$DF
+  out.mi <- UVI.long(coef.dat, stderror.dat^2,v0=df.vec, ADJ=adjust)
+
+
+  out.coef <- as.numeric(formatC(out.mi$coefficients))
+  out.pval <- as.numeric(formatC(out.mi$p.value))
+  out.se <- as.numeric(formatC(out.mi$se))
+
+  summary.coefs <- data.frame(cbind(out.coef, out.se, out.pval), row.names=names(fit1.lme$coefficients[["fixed"]]))
   names(summary.coefs) <- c("Coefficient", "Std.error", "P.Value")
-  anovfull.out <- cbind(mean(anovfulldf.dat), formatC(mean(anovfullp.dat)))
+  anovfull.out <- cbind(colMeans(anovfulldf.dat), formatC(colMeans(anovfullp.dat)))
   row.names(anovfull.out) <- row.names(anovfull)
 
   anovfull.out <- as.data.frame(anovfull.out)
-  names(anovfull.out) <- c("DF", "P-Value")
-  likelihood.out <- paste("'log Lik'", round(mean(lnLbig.dat), digits=3), paste("(df=", attr(lnLbig, "df"), ")", sep=""))
-  
+  names(anovfull.out) <- c("DF", "Ave P-Value")
+  likelihood.out <- paste("'log Lik'", round(colMeans(lnLbig.dat), digits=3), paste("(df=", attr(lnLbig, "df"), ")", sep=""))
+
   print("  Done")
   # ****************************
 
   # Arrange the output data
-  
+
   for(i in 1:ncol(coef.dat)){
 
     output$coef.CI[i] <- paste("(",formatC(quantile(coef.dat[,i], probs=c(0.025), na.rm=T)),",",formatC(quantile(coef.dat[,i], probs=c(0.975), na.rm=T)),")", sep="")
-    
+
     output$pval.CI[i] <- paste("(",formatC(quantile(p.dat[,i], probs=c(0.025), na.rm=T)),",",formatC(quantile(p.dat[,i], probs=c(0.975), na.rm=T)),")", sep="")
     output$se.CI[i] <- paste("(",formatC(quantile(stderror.dat[,i], probs=c(0.025), na.rm=T)),",",formatC(quantile(stderror.dat[,i], probs=c(0.975), na.rm=T)),")", sep="")
-    
+
   }
 
-  out <- data.frame(cbind(output$coef, output$coef.CI, output$se, output$se.CI, output$pval, output$pval.CI))
+  out <- data.frame(cbind(out.coef, output$coef.CI, out.se, output$se.CI, out.pval, output$pval.CI))
 
   names(out) <- c("Coef", "Coef.quantiles", "Std.Error", "Std.Error.quantiles", "P.Val", "P.Val.quantiles")
   if(effect=="add") Effect <- ("ADDITIVE")
   if(effect=="dom") Effect <- ("DOMINANT")
   if(effect=="rec") Effect <- ("RECESSIVE")
-  
-  out.list <- list(fixed_formula=formula_fixed, random_formula=formula_random, results=out,empiricalResults=allResults, summary.coefs=summary.coefs, ANOD=anovfull.out,logLik=likelihood.out, AIC=mean(aic.dat), aicEmpirical=aic.dat, corStruct=cor, effect=Effect)
+
+  out.list <- list(fixed_formula=formula_fixed, random_formula=formula_random, results=out,empiricalResults=allResults, summary.coefs=summary.coefs, ANOD=anovfull.out,logLik=likelihood.out, AIC=colMeans(aic.dat), aicEmpirical=aic.dat, corStruct=cor, effect=Effect)
   class(out.list) <- "hapLong"
   return(out.list)
 
 }
-
-

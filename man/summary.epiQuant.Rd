@@ -2,6 +2,7 @@
 \alias{summary.epiQuant}
 \alias{print.summary.epiQuant}
 
+
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{Summarizing epidemiological analysis models for quantitative outcomes}
 \description{
@@ -41,9 +42,7 @@
 McCaskie, P.A., Carter, K.W. Hazelton, M., Palmer, L.J. (2007) SimHap: A comprehensive modeling framework for epidemiological outcomes and a multiple-imputation approach to haplotypic analysis of population-based data, [online] www.genepi.org.au/simhap.
 }
 \author{Pamela A. McCaskie}
-\note{
 
-}
 \seealso{\code{\link{epi.quant}}}
 \examples{
 

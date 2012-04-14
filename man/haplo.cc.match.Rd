@@ -63,8 +63,13 @@ haplo.dat <- SNP2Haplo(SNP.dat)
 
 data(pheno.dat)
 
-# generate haplotype frequencies and haplotype design matrix
-myinfer<-infer.haplos(haplo.dat) 
+newdata <- prepare.cc(geno=haplo.dat, pheno=pheno.dat, cc.var="DISEASE")
+newhaplo.dat <- newdata$geno
+newpheno.dat <- newdata$pheno
+
+# generates haplotype frequencies and haplotype design matrix
+myinfer<-infer.haplos.cc(geno=newhaplo.dat, 
+        pheno=newpheno.dat, cc.var="DISEASE")
 
 # prints haplotype frequencies among cases
 myinfer$hap.freq.cases

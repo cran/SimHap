@@ -70,7 +70,7 @@ function(formula1, formula2, geno, pheno, sub=NULL){
      #takes care of variables defined as factors in the formulae so they can be found in the data
      formula1_nofactors <- formula1
      formula1_terms <- attr(terms(formula1_nofactors), "term.labels")
-     
+
      if(any(regexpr(":", formula1_terms)!=-1)){
         formula1_terms <- formula1_terms[-which(regexpr(":", formula1_terms)!=-1)]
      }
@@ -89,6 +89,7 @@ function(formula1, formula2, geno, pheno, sub=NULL){
 
    if(length(sub)==0) {
        fit1.coxph <- coxph(formula=formula1, data=dataframe, na.action=na.omit)
+
        }
 
      else {
@@ -107,11 +108,10 @@ function(formula1, formula2, geno, pheno, sub=NULL){
    lnLsmall <- fit2.coxph$loglik[2]
    fit1.df <- summary(fit1.coxph)$logtest[2]
    fit2.df <- summary(fit2.coxph)$logtest[2]
-
    lr <- -2*(lnLsmall-lnLbig)
    lr.df <- fit1.df-fit2.df
    lrt <- pchisq(lr,df=lr.df)
-   
+
    anov.out1 <- cbind(round(lnLbig,digits=4), fit1.df, round(lr,digits=4), signif((1-lrt), digits=4))
    anov.out2 <- cbind(round(lnLsmall,digits=4), fit2.df, "", "")
    row.names(anov.out1) <- c("Full model")
@@ -124,15 +124,14 @@ function(formula1, formula2, geno, pheno, sub=NULL){
    anov <- as.data.frame(anova(fit2.coxph, fit1.coxph, test="Chisq"))
    anovp.row <- anov$"P(>|Chi|)"[2]
    anovdf.row <- anov$Df
-   anovresdf.row <- anov$"Resid. Df"
-   anov.out1 <- cbind(anovresdf.row[1], "", "")
+   anovloglik <- anov$loglik
+   anov.out1 <- cbind(round(anovloglik[1],digits=3), "", "")
    row.names(anov.out1) <- c("1")
-   anov.out2 <- cbind(anovresdf.row[2], anovdf.row[2], signif(anovp.row, digits=3))
+   anov.out2 <- cbind(round(anovloglik[2], digits=3), anovdf.row[2], signif(anovp.row, digits=3))
    row.names(anov.out2) <- c("2")
    anov.out <- rbind(anov.out1, anov.out2)
    anov.out <- as.data.frame(anov.out)
-   names(anov.out) <- c("Residual DF", "DF", "P-Value")
- 
+   names(anov.out) <- c("loglik", "DF", "P-Value")
    fit1.rsquared <- summary(fit1.coxph)$rsq[1]
    fit2.rsquared <- summary(fit2.coxph)$rsq[1]
    max.rsquared <- summary(fit1.coxph)$rsq[2]
@@ -167,4 +166,3 @@ function(formula1, formula2, geno, pheno, sub=NULL){
   
 
  }
-

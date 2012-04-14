@@ -2,6 +2,7 @@
 \alias{summary.hapLong}
 \alias{print.summary.hapLong}
 
+
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{Summarizing single SNP analysis models for longitudinal data}
 \description{
@@ -9,7 +10,7 @@ Summary method for objects of class \code{snpLong}
 }
 \usage{
 \method{summary}{hapLong}(object, ...)
-\method{print}{summary.hapLong}(x, digits = max(3, getOption("digits") - 3), 
+\method{print}{summary.hapLong}(x, digits = max(3, getOption("digits") - 3),
 	signif.stars = getOption("show.signif.stars"), ...)
 
 }
@@ -47,12 +48,12 @@ longHaplo.dat <- SNP2Haplo(SNPlong.dat)
 
 data(longPheno.dat)
 
-myinfer<-infer.haplos(longHaplo.dat) 
-myinfer$hap.freq 
+myinfer<-infer.haplos(longHaplo.dat)
+myinfer$hap.freq
 
 myhaplo<-make.haplo.rare(myinfer,min.freq=0.05)
-mymodel <- haplo.long(fixed=fev1f~h.ACV2, random=~1|id, 
-	pheno=longPheno.dat, haplo=myhaplo, form=~year|id, sim=10)
+mymodel <- haplo.long(fixed=fev1f~h.ACV2, random=~1|ID,
+	pheno=longPheno.dat, haplo=myhaplo, cor="corCAR1", form=~year|ID, sim=10)
 summary(mymodel)
 
 

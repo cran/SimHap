@@ -9,7 +9,7 @@
 \format{
   A data frame with 601 observations on the following 12 variables.
   \describe{
-    \item{\code{id}}{patient identifier.}
+    \item{\code{ID}}{patient identifier.}
     \item{\code{year}}{year of survey.}
     \item{\code{time}}{time point in years, where 1966=1.}
     \item{\code{sex}}{1=male, 0=female.}
@@ -21,7 +21,7 @@
   }
 }
 \details{
-  \code{longPheno.dat} was simulated to take the format of the Busselton Health Survey from Western Australia. 
+  \code{longPheno.dat} was simulated to take the format of the Busselton Health Survey from Western Australia.
 }
 \examples{
 
@@ -33,8 +33,8 @@ data(SNPlong.dat)
 longGeno.dat <- SNP2Geno(SNPlong.dat, baseline=c("AA", "GG", "V2V2"))
 data(longPheno.dat)
 
-mymodel <- snp.long(fixed=fev1f~SNP_1_add, random=~1|id, 
-	geno=longGeno.dat, pheno=longPheno.dat, form=~year|id)
+mymodel <- snp.long(fixed=fev1f~SNP_1_add, random=~1|ID,
+	geno=longGeno.dat, pheno=longPheno.dat, form=~year|ID)
 summary(mymodel)
 }
 \keyword{datasets}

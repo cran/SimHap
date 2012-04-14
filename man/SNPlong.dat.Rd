@@ -29,8 +29,8 @@ data(SNPlong.dat)
 longGeno.dat <- SNP2Geno(SNPlong.dat, baseline=c("AA", "GG", "V2V2"))
 
 data(longPheno.dat)
-mymodel <- snp.long(fixed=fev1f~SNP_1_add, random=~1|id, 
-	geno=longGeno.dat, pheno=longPheno.dat, form=~year|id)
+mymodel <- snp.long(fixed=fev1f~SNP_1_add, random=~1|ID,
+	geno=longGeno.dat, pheno=longPheno.dat, form=~year|ID)
 summary(mymodel)
 
 }

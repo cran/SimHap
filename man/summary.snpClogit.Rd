@@ -3,6 +3,7 @@
 \alias{print.summary.snpClogit}
 
 
+
 \title{Summarizing Single SNP analysis models for matched case-control data}
 \description{
   Summary method for objects of class \code{snpClogit}
